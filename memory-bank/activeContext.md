@@ -1,44 +1,56 @@
 # Active Context
 
+## Recent Changes
+- Implemented dynamic configuration system using YAML
+- Removed hardcoded category files in favor of config-driven approach
+- Added yq dependency for YAML parsing
+- Created user configuration support
+- Updated installation process to handle configuration setup
+
 ## Current Focus
-Testing and refinement of core functionality
+The system now uses a single source of truth (config.yml) for all command definitions, making it easier to:
+- Add/remove categories
+- Modify commands
+- Extend functionality
+- Customize behavior
 
-## Recent Decisions
-1. Implemented category-based command organization
-2. Created smart command resolution for direct commands
-3. Designed modular category system
-4. Added comprehensive help system
-5. Implemented intelligent project type detection
+## Active Decisions
+1. Configuration Structure
+   - System config in src/config/config.yml
+   - User config in ~/.config/me-tool/config.yml
+   - User config merges with system config
 
-## Active Considerations
-- Testing strategy for each category
-- Command completion implementation
-- Installation process
-- User documentation
-- Configuration system design
+2. Command Properties
+   - description: Human-readable description
+   - usage: Usage example
+   - implementation: Actual command to execute
+   - requires_git: Git repository requirement
+   - requires_sudo: Sudo requirement
+   - requires_confirmation: Confirmation prompt
+   - args_required: Argument requirement
+   - error_message: Custom error message
+   - working_dir: Working directory control
 
-## Implementation Progress
-- Core functionality complete
-- All primary categories implemented:
-  - Git operations
-  - Directory navigation
-  - System commands
-  - Project management
-- Command parsing and routing working
-- Help system implemented
+3. Dynamic Command Resolution
+   - Commands resolved through YAML configuration
+   - No hardcoded category files
+   - Immediate effect of configuration changes
+   - Support for command aliases
 
-## Next Actions
-1. Test each category thoroughly
-2. Implement YAML configuration
-3. Create installation script
-4. Add command completion
-5. Write user documentation
-6. Review extending.md documentation for completeness
+## Next Steps
+1. Testing
+   - Verify all commands work as expected
+   - Test user configuration override
+   - Test error handling
+   - Test working directory management
 
-Note: A new extending.md guide has been added to document the process of adding new shortcuts and tools to the system. This documentation should be reviewed and updated as the system evolves.
+2. Documentation
+   - Update extending.md with new configuration approach
+   - Add configuration examples
+   - Document user customization process
 
-## Current Challenges
-- Ensuring cross-platform compatibility
-- Maintaining consistent behavior across categories
-- Optimizing command resolution performance
-- Balancing flexibility with simplicity
+3. Future Improvements
+   - Add command validation in config
+   - Support for command dependencies
+   - Environment variable interpolation
+   - Command suggestion system

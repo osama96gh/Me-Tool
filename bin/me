@@ -3,95 +3,53 @@
 # Me Tool - Smart command-line utility
 # Main executable script
 
-# Source utility functions and configurations
+# Set script directory and project root
 SCRIPT_DIR="${0:A:h}"
 PROJECT_ROOT="${SCRIPT_DIR:h}"
+
+# Source utility functions
 source "${PROJECT_ROOT}/src/utils/helpers.sh"
+
+# Source core components in correct order
+source "${PROJECT_ROOT}/src/utils/config.sh"
+source "${PROJECT_ROOT}/src/utils/executor.sh"
 source "${PROJECT_ROOT}/src/utils/parser.sh"
-
-# Help message
-show_help() {
-    cat << EOF
-Usage: me [category] <command> [arguments]
-
-Categories:
-  sys     System commands
-  git     Git operations
-  dir     Directory navigation
-  proj    Project operations
-
-Examples:
-  me status           # Run git status (if unique)
-  me git status       # Explicitly run git status
-  me sys update      # Run system update
-  me dir dev         # Navigate to development directory
-  me help            # Show this help message
-  me help <category> # Show category-specific help
-EOF
-}
 
 # Error handling
 handle_error() {
     local error_msg="$1"
-    echo "Error: ${error_msg}" >&2
+    print_error "$error_msg"
     exit 1
-}
-
-# Check if command exists in multiple categories
-check_command_conflicts() {
-    local cmd="$1"
-    local conflicts=()
-    
-    # TODO: Implement actual conflict checking
-    # For now, return example conflicts for 'status'
-    if [[ "$cmd" == "status" ]]; then
-        conflicts=("git" "proj")
-    fi
-    
-    echo "${conflicts[@]}"
-}
-
-# Resolve and execute command
-execute_command() {
-    local category="$1"
-    local cmd="$2"
-    shift 2
-    local args=("$@")
-    
-    # Source the appropriate category module
-    if [[ -f "${PROJECT_ROOT}/src/categories/${category}.sh" ]]; then
-        source "${PROJECT_ROOT}/src/categories/${category}.sh"
-        "execute_${category}_command" "$cmd" "${args[@]}"
-    else
-        handle_error "Category '${category}' not found"
-    fi
 }
 
 # Main command processing
 main() {
     # Show help if no arguments
     if [[ $# -eq 0 ]]; then
-        show_help
+        show_general_help
         exit 0
     fi
 
     # Handle help commands
     if [[ "$1" == "help" ]]; then
         if [[ $# -eq 1 ]]; then
-            show_help
+            show_general_help
             exit 0
         else
             local help_category="$2"
-            case "$help_category" in
-                sys|git|dir|proj)
-                    source "${PROJECT_ROOT}/src/categories/${help_category}.sh"
-                    "show_${help_category}_help"
-                    exit 0
-                    ;;
-                *)
-                    handle_error "Unknown category: $help_category"
-                    ;;
-            esac
+            if yq e ".categories.$help_category" "$CONFIG_FILE" &> /dev/null; then
+                show_category_help "$help_category"
+                exit 0
+            else
+                handle_error "Unknown category: $help_category"
+            fi
+        fi
+    elif [[ "$2" == "help" ]]; then
+        if yq e ".categories.$1" "$CONFIG_FILE" &> /dev/null; then
+            show_category_help "$1"
+            exit 0
+        else
+            handle_error "Unknown category: $1"
         fi
     fi
     
@@ -100,43 +58,22 @@ main() {
     shift
     
     # Check if first argument is a category
-    case "$cmd" in
-        sys|git|dir|proj)
-            category="$cmd"
-            cmd="$1"
-            shift
-            ;;
-        *)
-            # Check for command conflicts
-            local conflicts=($(check_command_conflicts "$cmd"))
-            if [[ ${#conflicts[@]} -gt 1 ]]; then
-                echo "Command '$cmd' exists in multiple categories:"
-                local i=1
-                for cat in "${conflicts[@]}"; do
-                    echo "$i) $cat $cmd"
-                    ((i++))
-                done
-                echo -n "Select category (1-${#conflicts[@]}): "
-                read choice
-                
-                if [[ "$choice" =~ ^[0-9]+$ && "$choice" -le ${#conflicts[@]} ]]; then
-                    category="${conflicts[$choice]}"
-                else
-                    handle_error "Invalid selection"
-                fi
-            else
-                # Default category based on command
-                # TODO: Implement smarter category detection
-                case "$cmd" in
-                    status|push|pull|commit) category="git" ;;
-                    dev|doc|down) category="dir" ;;
-                    serve|build|test) category="proj" ;;
-                    update|clean) category="sys" ;;
-                    *) handle_error "Unknown command: $cmd" ;;
-                esac
-            fi
-            ;;
-    esac
+    if yq e ".categories.$cmd" "$CONFIG_FILE" &> /dev/null; then
+        category="$cmd"
+        cmd="$1"
+        shift
+    else
+        # Use dynamic command parsing to determine category
+        category="$(get_category "$cmd")"
+        if [[ $? -ne 0 ]]; then
+            handle_error "Unknown command: $cmd"
+        fi
+    fi
+    
+    # Validate command for category
+    if ! validate_command "$category" "$cmd"; then
+        handle_error "Invalid command '$cmd' for category '$category'"
+    fi
     
     # Execute the command
     execute_command "$category" "$cmd" "$@"

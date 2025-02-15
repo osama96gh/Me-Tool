@@ -1,162 +1,160 @@
 # Extending Me Tool
 
-This guide explains how to add new shortcuts and tools to the Me Tool.
+This guide explains how to extend and customize the Me Tool using the configuration system.
 
 ## Table of Contents
-1. [Adding Commands to Existing Categories](#adding-commands-to-existing-categories)
-2. [Creating New Categories](#creating-new-categories)
-3. [Core System Integration](#core-system-integration)
-4. [Best Practices](#best-practices)
+1. [Configuration Overview](#configuration-overview)
+2. [Adding Commands](#adding-commands)
+3. [Creating Categories](#creating-categories)
+4. [Command Properties](#command-properties)
 5. [Examples](#examples)
 
-## Adding Commands to Existing Categories
+## Configuration Overview
 
-### 1. Choose the Appropriate Category
-The Me Tool organizes commands into categories:
-- `sys`: System-related commands
-- `git`: Git operations
-- `dir`: Directory navigation
-- `proj`: Project operations
+The Me Tool uses a dual-configuration system:
+1. System configuration (`src/config/config.yml`)
+2. User configuration (`~/.config/me-tool/config.yml`)
 
-### 2. Modify Category File
-Navigate to `src/categories/` and edit the relevant category file (e.g., `sys.sh`).
+User configuration overrides and extends the system configuration, allowing for customization without modifying the core system.
 
-1. Update Help Documentation:
-```bash
-show_sys_help() {
-    cat << EOF
-System Commands:
-    existing    Existing command description
-    newcmd     Your new command description  # Add this line
+## Adding Commands
 
-Usage:
-    me sys existing    # Existing usage
-    me sys newcmd     # Add your usage      # Add this line
-EOF
-}
+### 1. Edit User Configuration
+Open `~/.config/me-tool/config.yml` and add your commands under the appropriate category:
+
+```yaml
+categories:
+  git:  # Existing category
+    commands:
+      custom:  # New command
+        description: "Custom git command"
+        usage: "me git custom [args]"
+        implementation: "git custom-command"
+        requires_git: true
 ```
 
-2. Add Command Implementation:
-```bash
-execute_sys_command() {
-    local cmd="$1"
-    shift
-    typeset -a args
-    args=($@)
-    
-    case "$cmd" in
-        # Existing commands...
-        
-        newcmd)
-            print_info "Executing new command..."
-            # Your command implementation here
-            ;;
-    esac
-}
+### 2. Command Properties
+Each command requires:
+- `description`: Human-readable description
+- `usage`: Usage example
+- `implementation`: Actual command to execute
+
+Optional properties:
+- `requires_git`: Git repository requirement
+- `requires_sudo`: Sudo requirement
+- `requires_confirmation`: Confirmation prompt
+- `args_required`: Argument requirement
+- `error_message`: Custom error message
+- `working_dir`: Working directory control
+
+## Creating Categories
+
+### 1. Add Category Definition
+Add a new category to your user configuration:
+
+```yaml
+categories:
+  docker:  # New category
+    name: "Docker Commands"
+    description: "Docker container management"
+    commands:
+      ps:
+        description: "List containers"
+        usage: "me docker ps"
+        implementation: "docker ps"
+      images:
+        description: "List images"
+        usage: "me docker images"
+        implementation: "docker images"
 ```
 
-## Creating New Categories
+### 2. Category Properties
+Each category requires:
+- `name`: Display name
+- `description`: Category description
+- `commands`: Command definitions
 
-### 1. Create Category File
-Create a new file in `src/categories/` (e.g., `newcat.sh`):
+## Command Properties
 
-```bash
-#!/bin/zsh
-
-# Show category help
-show_newcat_help() {
-    cat << EOF
-New Category Commands:
-    command1    First command description
-    command2    Second command description
-
-Usage:
-    me newcat command1    # Command1 usage
-    me newcat command2    # Command2 usage
-EOF
-}
-
-# Execute category command
-execute_newcat_command() {
-    local cmd="$1"
-    shift
-    typeset -a args
-    args=($@)
-    
-    case "$cmd" in
-        command1)
-            print_info "Executing command1..."
-            # Command1 implementation
-            ;;
-        command2)
-            print_info "Executing command2..."
-            # Command2 implementation
-            ;;
-        *)
-            print_error "Unknown command: $cmd"
-            show_newcat_help
-            return 1
-            ;;
-    esac
-}
+### Basic Properties
+```yaml
+command_name:
+  description: "Command description"
+  usage: "Usage example"
+  implementation: "Command to execute"
 ```
 
-### 2. Update Core System
-
-1. Modify `src/utils/parser.sh`:
-```bash
-# Update get_category()
-get_category() {
-    local cmd="$1"
-    
-    case "$cmd" in
-        # Existing patterns...
-        
-        command1|command2)  # Add your commands
-            echo "newcat"
-            ;;
-    esac
-}
-
-# Update validate_command()
-validate_command() {
-    local category="$1"
-    local cmd="$2"
-    
-    case "$category" in
-        newcat)  # Add your category
-            case "$cmd" in
-                command1|command2)  # Add your commands
-                    return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-    esac
-}
+### Advanced Properties
+```yaml
+command_name:
+  description: "Command description"
+  usage: "Usage example"
+  implementation: "Command to execute"
+  requires_git: true       # Requires git repository
+  requires_sudo: true      # Requires sudo privileges
+  requires_confirmation: true  # Requires user confirmation
+  args_required: true      # Requires arguments
+  error_message: "Custom error"  # Custom error message
+  working_dir: "project_root"  # Working directory
 ```
 
-2. Update `bin/me`:
-```bash
-# Update help message
-show_help() {
-    cat << EOF
-Categories:
-    sys      System commands
-    git      Git operations
-    dir      Directory navigation
-    proj     Project operations
-    newcat   Your category description  # Add this line
-EOF
-}
+## Examples
 
-# Update category handling
-case "$cmd" in
-    sys|git|dir|proj|newcat)  # Add your category
-        category="$cmd"
-        cmd="$1"
-        shift
-        ;;
-esac
+### Adding Git Commands
+```yaml
+categories:
+  git:
+    commands:
+      stash-all:
+        description: "Stash all changes including untracked files"
+        usage: "me git stash-all"
+        implementation: "git stash --include-untracked"
+        requires_git: true
+```
+
+### Creating a Docker Category
+```yaml
+categories:
+  docker:
+    name: "Docker Commands"
+    description: "Docker container management"
+    commands:
+      ps:
+        description: "List containers"
+        usage: "me docker ps"
+        implementation: "docker ps"
+      stop-all:
+        description: "Stop all containers"
+        usage: "me docker stop-all"
+        implementation: "docker stop $(docker ps -q)"
+        requires_confirmation: true
+        error_message: "No running containers"
+```
+
+### Project-Specific Commands
+```yaml
+categories:
+  proj:
+    commands:
+      deploy:
+        description: "Deploy to production"
+        usage: "me proj deploy"
+        implementation: "npm run deploy"
+        working_dir: "project_root"
+        requires_confirmation: true
+```
+
+### System Utilities
+```yaml
+categories:
+  sys:
+    commands:
+      cleanup:
+        description: "Clean system caches"
+        usage: "me sys cleanup"
+        implementation: "rm -rf ~/Library/Caches/*"
+        requires_confirmation: true
+        requires_sudo: true
 ```
 
 ## Best Practices
@@ -164,109 +162,33 @@ esac
 1. Command Naming
    - Use clear, descriptive names
    - Follow existing naming patterns
-   - Avoid conflicts with existing commands
+   - Use hyphens for multi-word commands
 
-2. Error Handling
-   - Use provided helper functions:
-     * `print_error`: Display error messages
-     * `print_info`: Show information
-     * `print_success`: Indicate success
-   - Validate inputs
-   - Provide helpful error messages
+2. Command Properties
+   - Always provide clear descriptions
+   - Include helpful usage examples
+   - Set appropriate requirements
+   - Use meaningful error messages
 
-3. Documentation
-   - Update help documentation
-   - Include usage examples
-   - Document any requirements
+3. Implementation
+   - Test commands thoroughly
+   - Consider error cases
+   - Use appropriate working directories
+   - Handle command arguments properly
 
-4. Testing
-   - Test basic functionality
-   - Test error cases
-   - Verify help documentation
-   - Check for command conflicts
+4. Documentation
+   - Keep command descriptions up to date
+   - Document any prerequisites
+   - Include example usage
+   - Explain any special behavior
 
-## Examples
+## Testing
 
-### Adding a System Cleanup Command
+After adding new commands:
+1. Verify help documentation (`me help <category>`)
+2. Test basic functionality
+3. Test with various arguments
+4. Verify error handling
+5. Check working directory behavior
 
-1. Update `src/categories/sys.sh`:
-```bash
-# Add to help
-show_sys_help() {
-    cat << EOF
-System Commands:
-    cleanup    Clean temporary files
-    
-Usage:
-    me sys cleanup    # Remove temporary files
-EOF
-}
-
-# Add implementation
-execute_sys_command() {
-    case "$cmd" in
-        cleanup)
-            print_info "Cleaning temporary files..."
-            rm -rf /tmp/*
-            print_success "Cleanup complete"
-            ;;
-    esac
-}
-```
-
-2. Update `src/utils/parser.sh`:
-```bash
-get_category() {
-    case "$cmd" in
-        cleanup)
-            echo "sys"
-            ;;
-    esac
-}
-```
-
-### Adding a New Category
-
-Example of adding a 'docker' category:
-
-1. Create `src/categories/docker.sh`:
-```bash
-#!/bin/zsh
-
-show_docker_help() {
-    cat << EOF
-Docker Commands:
-    ps        List containers
-    images    List images
-    
-Usage:
-    me docker ps        # List running containers
-    me docker images    # List available images
-EOF
-}
-
-execute_docker_command() {
-    local cmd="$1"
-    shift
-    typeset -a args
-    args=($@)
-    
-    case "$cmd" in
-        ps)
-            docker ps
-            ;;
-        images)
-            docker images
-            ;;
-        *)
-            print_error "Unknown docker command: $cmd"
-            show_docker_help
-            return 1
-            ;;
-    esac
-}
-```
-
-2. Update core files as described in the [Core System Integration](#core-system-integration) section.
-
-Remember to test thoroughly after adding new commands or categories. Use the help system to verify documentation, and test both success and error cases.
+Changes take effect immediately - no restart required.

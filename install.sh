@@ -21,17 +21,32 @@ print_info() {
     echo -e "${BLUE}$1${NC}"
 }
 
+# Check for yq dependency
+if ! command -v yq &> /dev/null; then
+    print_error "yq is required for YAML parsing"
+    print_info "Installing yq..."
+    if command -v brew &> /dev/null; then
+        brew install yq
+    else
+        print_error "Homebrew not found. Please install yq manually:"
+        echo "Visit: https://github.com/mikefarah/yq#install"
+        exit 1
+    fi
+fi
+
 # Get the directory where the script is located
 SCRIPT_DIR="${0:A:h}"
 
 # Installation destination
 INSTALL_DIR="$HOME/.me-tool"
 BIN_DIR="$HOME/bin"
+CONFIG_DIR="$HOME/.config/me-tool"
 
 # Create installation directories
 print_info "Creating installation directories..."
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
+mkdir -p "$CONFIG_DIR"
 
 # Copy files to installation directory
 print_info "Copying files..."
@@ -42,11 +57,30 @@ cp -r "$SCRIPT_DIR/bin/me" "$BIN_DIR/"
 print_info "Setting permissions..."
 chmod +x "$BIN_DIR/me"
 chmod +x "$INSTALL_DIR/src/utils/"*.sh
-chmod +x "$INSTALL_DIR/src/categories/"*.sh
 
 # Update script paths
 print_info "Updating script paths..."
 sed -i '' "s|PROJECT_ROOT=\"\${SCRIPT_DIR:h}\"|PROJECT_ROOT=\"$INSTALL_DIR\"|" "$BIN_DIR/me"
+
+# Create user config if it doesn't exist
+if [[ ! -f "$CONFIG_DIR/config.yml" ]]; then
+    print_info "Creating user configuration..."
+    cat > "$CONFIG_DIR/config.yml" << EOF
+# Me Tool User Configuration
+# This file will be merged with the system configuration
+
+# Example of extending/overriding system config:
+# categories:
+#   custom:
+#     name: "Custom Commands"
+#     description: "Your custom command category"
+#     commands:
+#       example:
+#         description: "Example custom command"
+#         usage: "me custom example"
+#         implementation: "echo 'Custom command executed'"
+EOF
+fi
 
 # Add bin directory to current PATH
 export PATH="$PATH:$BIN_DIR"
@@ -78,8 +112,12 @@ print_success "\nMe Tool installation completed!"
 print_info "\nUsage:"
 echo "  me help           # Show help"
 echo "  me git status     # Git status"
-echo "  me dir dev        # Go to Development directory"
+echo "  me dir goto dev   # Go to Development directory"
 echo "  me sys update     # Update system"
-echo "  me proj serve     # Start development server"
+echo "  me proj start     # Start development server"
+
+print_info "\nCustomization:"
+echo "  Edit ~/.config/me-tool/config.yml to add or modify commands"
+echo "  Changes take effect immediately, no restart required"
 
 print_info "\nFor more information, run: me help"

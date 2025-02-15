@@ -2,21 +2,23 @@
 
 # Me Tool - Command Parser
 
+# Source configuration manager
+source "$PROJECT_ROOT/src/utils/config.sh"
+
+# Initialize configuration
+init_config
+
 # Parse command arguments
 parse_args() {
     # Initialize arrays
-    set -A args
-    set -A result
+    typeset -a args
+    typeset -a result
     
     # Copy arguments to args array
-    for arg in "$@"; do
-        args+=("$arg")
-    done
+    args=($@)
     
     # Skip processing if no arguments
-    if [[ ${#args} -eq 0 ]]; then
-        return 1
-    fi
+    [[ ${#args} -eq 0 ]] && return 1
     
     # Process arguments
     local i=0
@@ -50,45 +52,26 @@ parse_args() {
     return 0
 }
 
-# Get command category
+# Get command category from config
 get_category() {
     local cmd="$1"
     
-    # First check if it's an explicit category
-    if validate_category "$cmd"; then
+    # Check if it's a valid category
+    yq e ".categories.$cmd" "$CONFIG_FILE" &> /dev/null && {
         echo "$cmd"
         return 0
-    fi
+    }
     
-    # Then check command patterns
-    case "$cmd" in
-        # Git commands
-        status|push|pull|commit|branch|checkout|merge)
-            echo "git"
-            ;;
-        
-        # Directory commands
-        dev|doc|down|home|projects)
-            echo "dir"
-            ;;
-        
-        # Project commands
-        serve|build|test|start|install)
-            echo "proj"
-            ;;
-        
-        # System commands
-        update|clean|reboot|shutdown)
-            echo "sys"
-            ;;
-        
-        *)
-            # Unknown command
-            return 1
-            ;;
-    esac
+    # Search for command in all categories
+    local category
+    for category in $(get_categories); do
+        yq e ".categories.$category.commands.$cmd" "$CONFIG_FILE" &> /dev/null && {
+            echo "$category"
+            return 0
+        }
+    done
     
-    return 0
+    return 1
 }
 
 # Validate command for category
@@ -96,63 +79,29 @@ validate_command() {
     local category="$1"
     local cmd="$2"
     
-    case "$category" in
-        git)
-            case "$cmd" in
-                status|push|pull|commit|branch|checkout|merge)
-                    return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-        
-        dir)
-            case "$cmd" in
-                dev|doc|down|home|projects)
-                    return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-        
-        proj)
-            case "$cmd" in
-                serve|build|test|start|install)
-                    return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-        
-        sys)
-            case "$cmd" in
-                update|clean|reboot|shutdown)
-                    return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-        
-        *)
-            return 1
-            ;;
-    esac
+    # Check if command exists in category
+    yq e ".categories.$category.commands.$cmd" "$CONFIG_FILE" &> /dev/null && return 0
+    
+    return 1
 }
 
 # Parse command string into parts
 parse_command() {
     local input="$1"
-    set -A parts
+    typeset -a parts
     
     # Split input into words
-    set -A words
+    typeset -a words
     words=(${(s: :)input})
     
     # Process each word
+    local word
     for word in "${words[@]}"; do
         # Clean the word
         word="$(trim "$word")"
         
         # Skip empty words
-        if is_empty "$word"; then
-            continue
-        fi
+        is_empty "$word" && continue
         
         # Validate word
         if ! is_alphanumeric "$word"; then
@@ -169,17 +118,15 @@ parse_command() {
 
 # Get command arguments
 get_command_args() {
-    set -A args
-    for arg in "$@"; do
-        args+=("$arg")
-    done
+    typeset -a args
+    args=($@)
     
     local start_index=2  # Skip category and command
     
-    if [[ ${#args} -lt $start_index ]]; then
+    [[ ${#args} -lt $start_index ]] && {
         echo ""
         return 0
-    fi
+    }
     
     print -l -- "${args[@]:$start_index}"
     return 0
@@ -187,18 +134,7 @@ get_command_args() {
 
 # Check if command needs confirmation
 needs_confirmation() {
-    local category="$1"
-    local cmd="$2"
-    
-    case "$category" in
-        sys)
-            case "$cmd" in
-                reboot|shutdown) return 0 ;;
-                *) return 1 ;;
-            esac
-            ;;
-        *) return 1 ;;
-    esac
+    command_needs_confirmation "$1" "$2"
 }
 
 # Format command for display
@@ -206,25 +142,19 @@ format_command() {
     local category="$1"
     local cmd="$2"
     shift 2
-    set -A args
-    for arg in "$@"; do
-        args+=("$arg")
-    done
+    typeset -a args
+    args=($@)
     
     local formatted="me"
     
     # Add category if provided
-    if [[ -n "$category" ]]; then
-        formatted+=" $category"
-    fi
+    [[ -n "$category" ]] && formatted+=" $category"
     
     # Add command
     formatted+=" $cmd"
     
     # Add arguments if any
-    if [[ ${#args} -gt 0 ]]; then
-        formatted+=" ${args[@]}"
-    fi
+    [[ ${#args} -gt 0 ]] && formatted+=" ${args[@]}"
     
     echo "$formatted"
 }

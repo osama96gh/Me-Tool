@@ -1,194 +1,176 @@
 # Me Tool
 
-A smart command-line utility that provides shortcuts for frequently used commands with intelligent category-based organization.
+A smart command-line utility that provides shortcuts for frequently used commands with intelligent category-based organization and automatic command resolution.
+
+## Features
+
+- Dynamic command configuration through YAML
+- Category-based command organization
+- Smart command resolution
+- User-customizable commands and categories
+- Automatic help generation
+- Support for command aliases
+- Working directory management
+- Git repository awareness
+- Sudo and confirmation requirements
 
 ## Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/me-tool.git
-
-# Navigate to the directory
 cd me-tool
 
-# Run the installation script
+# Run installation script
 ./install.sh
 ```
 
+The installation script will:
+1. Check for and install required dependencies (yq)
+2. Create necessary directories
+3. Install the tool and configuration files
+4. Add the tool to your PATH
+5. Create a user configuration file
+
 ## Usage
 
-The Me Tool organizes commands into categories for easy access. You can use commands either with or without explicitly specifying their category.
-
-### Basic Syntax
-
+Basic command structure:
 ```bash
 me [category] <command> [arguments]
 ```
 
-### Categories
-
-1. System Commands (sys)
+Examples:
 ```bash
-# Update system and packages
-me sys update
-
-# Clean up system
-me sys clean
-
-# Show disk usage
-me sys disk
-
-# System operations (requires confirmation)
-me sys reboot
-me sys shutdown
+me git status           # Show git status
+me sys update          # Update system packages
+me dir goto dev        # Navigate to development directory
+me proj start          # Start development server
+me help                # Show general help
+me help git            # Show git category help
 ```
 
-2. Git Operations (git)
-```bash
-# Show repository status
-me git status
+## Configuration
 
-# Push/pull changes
-me git push
-me git pull
+The Me Tool uses a YAML-based configuration system that allows for easy extension and customization.
 
-# Commit changes
-me git commit -m "your message"
+### System Configuration
 
-# Branch operations
-me git branch          # List branches
-me git checkout main   # Switch to main branch
-me git merge dev      # Merge dev branch
+The system configuration (`src/config/config.yml`) defines the base commands and categories:
+
+```yaml
+categories:
+  git:
+    name: "Git Operations"
+    description: "Git version control commands"
+    commands:
+      status:
+        description: "Show git status"
+        usage: "me git status"
+        implementation: "git status"
+        requires_git: true
 ```
 
-3. Directory Navigation (dir)
-```bash
-# Quick directory access
-me dir dev       # Go to Development directory
-me dir doc       # Go to Documents
-me dir down      # Go to Downloads
-me dir home      # Go to Home directory
-me dir projects  # Go to Projects directory
+### User Configuration
+
+You can extend or override the system configuration by editing `~/.config/me-tool/config.yml`:
+
+```yaml
+categories:
+  custom:
+    name: "Custom Commands"
+    description: "Your custom command category"
+    commands:
+      example:
+        description: "Example custom command"
+        usage: "me custom example"
+        implementation: "echo 'Custom command executed'"
 ```
 
-4. Project Operations (proj)
+### Command Properties
+
+Each command can have the following properties:
+
+- `description`: Human-readable description
+- `usage`: Usage example
+- `implementation`: The actual command to execute
+- `requires_git`: Whether the command requires a git repository
+- `requires_sudo`: Whether the command needs sudo privileges
+- `requires_confirmation`: Whether to prompt for confirmation
+- `args_required`: Whether arguments are required
+- `error_message`: Custom error message for invalid usage
+- `working_dir`: Working directory for command execution
+
+## Categories
+
+### Git Operations
+Git-related commands with repository awareness:
 ```bash
-# Show project status
-me proj status
-
-# Development server
-me proj serve
-
-# Build project
-me proj build
-
-# Run tests
-me proj test
-
-# Dependency management
-me proj install
+me git status          # Show repository status
+me git push           # Push changes
+me git pull          # Pull changes
+me git commit        # Commit changes
+me git branch        # Manage branches
+me git checkout     # Switch branches
+me git merge        # Merge branches
 ```
 
-### Smart Command Resolution
-
-You can use commands without specifying their category. The tool will automatically determine the appropriate category:
-
+### System Operations
+System maintenance and utilities:
 ```bash
-me status    # Same as 'me git status' if in a git repository
-me update    # Same as 'me sys update'
-me dev       # Same as 'me dir dev'
-me build     # Same as 'me proj build'
+me sys update        # Update system packages
+me sys clean         # Clean system caches
+me sys reboot        # Reboot system (requires confirmation)
 ```
 
-If a command exists in multiple categories, you'll be prompted to choose:
+### Directory Navigation
+Quick directory navigation and management:
 ```bash
-$ me status
-Command 'status' exists in multiple categories:
-1) git status
-2) proj status
-Select category (1-2):
+me dir goto work     # Navigate to work directory
+me dir save proj     # Save current directory as 'proj'
+me dir list          # List saved directories
 ```
 
-### Getting Help
-
+### Project Operations
+Project development commands:
 ```bash
-# Show general help
-me help
-
-# Show category-specific help
-me help sys
-me help git
-me help dir
-me help proj
+me proj start        # Start development server
+me proj build        # Build project
+me proj test         # Run tests
 ```
 
-## Features
+## Extending
 
-- Smart command resolution
-- Category-based organization
-- Command conflict handling
-- Intuitive navigation
-- Project type detection
-- System operation shortcuts
-- Git workflow optimization
+To add new commands or categories:
 
-## Project Types
+1. Edit your user configuration at `~/.config/me-tool/config.yml`
+2. Add your new category and/or commands following the YAML structure
+3. Changes take effect immediately - no restart required
 
-The project category automatically detects and supports different project types:
-
-1. Node.js Projects
-   - Detected by `package.json`
-   - Supports npm commands
-   - Handles dev servers
-
-2. Python Projects
-   - Detected by `requirements.txt`
-   - Supports pip package management
-   - Handles Django/Flask servers
-
-3. Rust Projects
-   - Detected by `Cargo.toml`
-   - Supports cargo commands
-
-4. Go Projects
-   - Detected by `go.mod`
-   - Supports go commands
-
-## Examples
-
-1. Git Workflow
-```bash
-me status              # Check git status
-me pull               # Pull latest changes
-me commit -m "fix"    # Commit changes
-me push               # Push to remote
-```
-
-2. Project Development
-```bash
-me proj install       # Install dependencies
-me serve             # Start development server
-me test              # Run tests
-me build             # Build project
-```
-
-3. System Management
-```bash
-me sys update        # Update system
-me sys clean         # Clean up system
-me sys disk          # Check disk usage
-```
-
-4. Directory Navigation
-```bash
-me dev              # Go to Development directory
-me projects         # Go to Projects directory
+Example of adding a new category:
+```yaml
+categories:
+  docker:
+    name: "Docker Commands"
+    description: "Docker container management"
+    commands:
+      ps:
+        description: "List containers"
+        usage: "me docker ps"
+        implementation: "docker ps"
+      images:
+        description: "List images"
+        usage: "me docker images"
+        implementation: "docker images"
 ```
 
 ## Contributing
 
-See [extending.md](memory-bank/extending.md) for detailed information on how to add new commands and categories to the Me Tool.
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
 
 ## License
 
-MIT License - feel free to use and modify as needed.
+This project is licensed under the MIT License - see the LICENSE file for details.

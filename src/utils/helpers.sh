@@ -2,126 +2,160 @@
 
 # Me Tool - Helper Functions
 
-# Check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Validate category name
-validate_category() {
-    local category="$1"
-    case "$category" in
-        sys|git|dir|proj) return 0 ;;
-        *) return 1 ;;
-    esac
-}
-
-# Get user's home directory
-get_home_dir() {
-    echo "$HOME"
-}
-
-# Get common directories
-get_dev_dir() {
-    echo "$(get_home_dir)/Development"
-}
-
-get_downloads_dir() {
-    echo "$(get_home_dir)/Downloads"
-}
-
-get_documents_dir() {
-    echo "$(get_home_dir)/Documents"
-}
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 # Print colored output
 print_error() {
-    echo "\033[31mError: $1\033[0m" >&2
+    echo -e "${RED}Error: $1${NC}" >&2
 }
 
 print_success() {
-    echo "\033[32m$1\033[0m"
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}$1${NC}"
 }
 
 print_info() {
-    echo "\033[34m$1\033[0m"
+    echo -e "${BLUE}$1${NC}"
 }
 
-# Check if we're in a git repository
-is_git_repository() {
-    git rev-parse --is-inside-work-tree >/dev/null 2>&1
-}
-
-# Load configuration
-load_config() {
-    local config_file="${PROJECT_ROOT}/src/config/config.yml"
-    # TODO: Implement YAML parsing
-    # For now, return default values
-    return 0
-}
-
-# Suggest similar commands
-suggest_command() {
-    local cmd="$1"
-    local suggestions=()
-    
-    # Simple suggestion logic based on common commands
-    case "$cmd" in
-        stat*) suggestions+=("status") ;;
-        pus*) suggestions+=("push") ;;
-        pul*) suggestions+=("pull") ;;
-        com*) suggestions+=("commit") ;;
-        buil*) suggestions+=("build") ;;
-        ser*) suggestions+=("serve") ;;
-        upd*) suggestions+=("update") ;;
-    esac
-    
-    if [[ ${#suggestions[@]} -gt 0 ]]; then
-        echo "Did you mean:"
-        printf "  %s\n" "${suggestions[@]}"
-    fi
-}
-
-# Check if a path exists
-path_exists() {
-    [[ -e "$1" ]]
-}
-
-# Create directory if it doesn't exist
-ensure_directory() {
-    local dir="$1"
-    if [[ ! -d "$dir" ]]; then
-        mkdir -p "$dir"
-    fi
-}
-
-# Get absolute path
-get_absolute_path() {
-    local path="$1"
-    echo "${path:A}"
-}
-
-# Check if string contains only alphanumeric characters
-is_alphanumeric() {
-    [[ "$1" =~ ^[a-zA-Z0-9]+$ ]]
-}
-
-# Trim whitespace from string
+# String manipulation
 trim() {
     local str="$1"
-    echo "${str## }${str%% }"
+    # Remove leading and trailing whitespace
+    str="${str#"${str%%[![:space:]]*}"}"
+    str="${str%"${str##*[![:space:]]}"}"
+    echo "$str"
 }
 
-# Join array elements with delimiter
-join_by() {
-    local d="$1"
-    shift
-    echo -n "$1"
-    shift
-    printf "%s" "${@/#/$d}"
-}
-
-# Check if variable is empty or only whitespace
+# String validation
 is_empty() {
-    [[ -z "${1// }" ]]
+    local str="$1"
+    [[ -z "${str// }" ]]
+}
+
+is_alphanumeric() {
+    local str="$1"
+    [[ "$str" =~ ^[a-zA-Z0-9_-]+$ ]]
+}
+
+# Git repository check
+is_git_repository() {
+    git rev-parse --is-inside-work-tree &> /dev/null
+}
+
+# Directory validation
+is_directory() {
+    local dir="$1"
+    [[ -d "$dir" ]]
+}
+
+# File validation
+is_file() {
+    local file="$1"
+    [[ -f "$file" ]]
+}
+
+# Command validation
+command_exists() {
+    local cmd="$1"
+    command -v "$cmd" &> /dev/null
+}
+
+# Array functions
+join_by() {
+    local d=${1-} f=${2-}
+    if shift 2; then
+        printf %s "$f" "${@/#/$d}"
+    fi
+}
+
+# Path manipulation
+normalize_path() {
+    local path="$1"
+    echo "${path/#\~/$HOME}"
+}
+
+# Version comparison
+version_compare() {
+    if [[ "$1" == "$2" ]]; then
+        echo "="
+    elif [[ "$1" == "$(echo -e "$1\n$2" | sort -V | head -n1)" ]]; then
+        echo "<"
+    else
+        echo ">"
+    fi
+}
+
+# Environment check
+is_macos() {
+    [[ "$(uname)" == "Darwin" ]]
+}
+
+is_linux() {
+    [[ "$(uname)" == "Linux" ]]
+}
+
+# Sudo check
+has_sudo() {
+    sudo -n true 2>/dev/null
+}
+
+# Process check
+is_running() {
+    local pid="$1"
+    kill -0 "$pid" 2>/dev/null
+}
+
+# Network check
+has_internet() {
+    ping -c 1 8.8.8.8 &>/dev/null
+}
+
+# File system functions
+ensure_dir() {
+    local dir="$1"
+    [[ -d "$dir" ]] || mkdir -p "$dir"
+}
+
+backup_file() {
+    local file="$1"
+    [[ -f "$file" ]] && cp "$file" "${file}.bak"
+}
+
+# Configuration functions
+validate_yaml() {
+    local file="$1"
+    yq e '.' "$file" &>/dev/null
+}
+
+merge_yaml() {
+    local file1="$1"
+    local file2="$2"
+    yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' "$file1" "$file2"
+}
+
+# Logging functions
+log_error() {
+    local msg="$1"
+    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $msg" >&2
+}
+
+log_info() {
+    local msg="$1"
+    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $msg"
+}
+
+log_debug() {
+    [[ "${DEBUG:-0}" == "1" ]] && {
+        local msg="$1"
+        echo "[DEBUG] $(date '+%Y-%m-%d %H:%M:%S') - $msg"
+    }
 }
